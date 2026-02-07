@@ -42,12 +42,12 @@ const JobForm = ({ onJobCreated }) => {
 
   return (
     <div className="max-w-2xl mx-auto bg-white border-4 border-black shadow-neo p-8">
-      <h1 className="text-4xl font-black text-black mb-2 uppercase italic">Find Candidates</h1>
-      <p className="font-bold text-gray-800 mb-6">Enter requirements. Let the swarm work.</p>
-      
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <h1 className="text-3xl font-black text-black mb-2 uppercase italic tracking-tight">Find Candidates</h1>
+      <p className="font-bold text-gray-800 mb-6 text-sm tracking-wide">Enter requirements. Let the swarm work.</p>
+
+      <form onSubmit={handleSubmit} className="space-y-5">
         <div>
-          <label className="block text-lg font-black text-black mb-2 uppercase">
+          <label className="block text-sm font-black text-black mb-2 uppercase tracking-wide">
             Role Title
           </label>
           <input
@@ -56,14 +56,14 @@ const JobForm = ({ onJobCreated }) => {
             value={formData.title}
             onChange={handleChange}
             required
-            className="w-full px-4 py-3 border-4 border-black bg-white focus:bg-neo-yellow outline-none font-bold"
+            className="w-full px-4 py-3 border-4 border-black bg-white focus:bg-neo-yellow outline-none font-bold text-xs"
             placeholder="e.g., Senior Full-Stack Engineer"
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div>
-            <label className="block text-lg font-black text-black mb-2 uppercase">
+            <label className="block text-sm font-black text-black mb-2 uppercase tracking-wide">
               Company Name
             </label>
             <input
@@ -72,13 +72,13 @@ const JobForm = ({ onJobCreated }) => {
               value={formData.company}
               onChange={handleChange}
               required
-              className="w-full px-4 py-3 border-4 border-black bg-white focus:bg-neo-yellow outline-none font-bold"
+              className="w-full px-4 py-3 border-4 border-black bg-white focus:bg-neo-yellow outline-none font-bold text-xs"
               placeholder="e.g., Acme Corp"
             />
           </div>
 
           <div>
-            <label className="block text-lg font-black text-black mb-2 uppercase">
+            <label className="block text-sm font-black text-black mb-2 uppercase tracking-wide">
               Website
             </label>
             <input
@@ -87,14 +87,14 @@ const JobForm = ({ onJobCreated }) => {
               value={formData.company_website}
               onChange={handleChange}
               required
-              className="w-full px-4 py-3 border-4 border-black bg-white focus:bg-neo-yellow outline-none font-bold"
+              className="w-full px-4 py-3 border-4 border-black bg-white focus:bg-neo-yellow outline-none font-bold text-xs"
               placeholder="https://acme.com"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-lg font-black text-black mb-2 uppercase">
+          <label className="block text-sm font-black text-black mb-2 uppercase tracking-wide">
             Role Description
           </label>
           <textarea
@@ -103,13 +103,13 @@ const JobForm = ({ onJobCreated }) => {
             onChange={handleChange}
             required
             rows={4}
-            className="w-full px-4 py-3 border-4 border-black bg-white focus:bg-neo-yellow outline-none font-bold"
+            className="w-full px-4 py-3 border-4 border-black bg-white focus:bg-neo-yellow outline-none font-bold text-xs leading-relaxed"
             placeholder="Describe what this person will do..."
           />
         </div>
 
         <div>
-          <label className="block text-lg font-black text-black mb-2 uppercase">
+          <label className="block text-sm font-black text-black mb-2 uppercase tracking-wide">
             Required Skills
           </label>
           <input
@@ -118,21 +118,21 @@ const JobForm = ({ onJobCreated }) => {
             value={formData.required_skills}
             onChange={handleChange}
             required
-            className="w-full px-4 py-3 border-4 border-black bg-white focus:bg-neo-yellow outline-none font-bold"
+            className="w-full px-4 py-3 border-4 border-black bg-white focus:bg-neo-yellow outline-none font-bold text-xs"
             placeholder="React, Node.js, PostgreSQL, AWS"
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div>
-            <label className="block text-lg font-black text-black mb-2 uppercase">
+            <label className="block text-sm font-black text-black mb-2 uppercase tracking-wide">
               Experience Level
             </label>
             <select
               name="experience_level"
               value={formData.experience_level}
               onChange={handleChange}
-              className="w-full px-4 py-3 border-4 border-black bg-white focus:bg-neo-yellow outline-none font-bold appearance-none"
+              className="w-full px-4 py-3 border-4 border-black bg-white focus:bg-neo-yellow outline-none font-bold text-xs appearance-none"
             >
               <option value="Junior">Junior (0-2 years)</option>
               <option value="Mid">Mid-Level (3-5 years)</option>
@@ -142,7 +142,7 @@ const JobForm = ({ onJobCreated }) => {
           </div>
 
           <div>
-            <label className="block text-lg font-black text-black mb-2 uppercase">
+            <label className="block text-sm font-black text-black mb-2 uppercase tracking-wide">
               Location
             </label>
             <input
@@ -151,7 +151,7 @@ const JobForm = ({ onJobCreated }) => {
               value={formData.location}
               onChange={handleChange}
               required
-              className="w-full px-4 py-3 border-4 border-black bg-white focus:bg-neo-yellow outline-none font-bold"
+              className="w-full px-4 py-3 border-4 border-black bg-white focus:bg-neo-yellow outline-none font-bold text-xs"
               placeholder="e.g., Remote (US)"
             />
           </div>
@@ -160,7 +160,7 @@ const JobForm = ({ onJobCreated }) => {
         <button
           type="submit"
           disabled={creating}
-          className="w-full bg-neo-pink text-black font-black text-2xl py-4 px-6 border-4 border-black shadow-neo hover:border-red-600 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:bg-gray-400 disabled:shadow-none uppercase"
+          className="w-full bg-neo-pink text-black font-black text-xl py-4 px-6 border-4 border-black shadow-neo hover:border-red-600 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:bg-gray-400 disabled:shadow-none uppercase tracking-wide"
         >
           {creating ? 'Sourcing Candidates...' : '🤖 Find Candidates'}
         </button>

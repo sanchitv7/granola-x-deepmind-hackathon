@@ -2,9 +2,15 @@ import { useState } from 'react';
 import { AppProvider } from './context/AppContext';
 import JobForm from './components/JobForm';
 import CandidateSwiper from './components/CandidateSwiper';
+import LandingPage from './components/LandingPage';
 
 function App() {
+  const [page, setPage] = useState('landing'); // 'landing' | 'app'
   const [jobCreated, setJobCreated] = useState(false);
+
+  if (page === 'landing') {
+    return <LandingPage onEnter={() => setPage('app')} />;
+  }
 
   return (
     <AppProvider>

@@ -7,7 +7,9 @@ from datetime import datetime
 from pathlib import Path
 
 
-DB_PATH = Path(__file__).parent / "recruiter.db"
+import os
+
+DB_PATH = Path(os.environ.get("DB_PATH", Path(__file__).parent / "recruiter.db"))
 
 
 async def init_db():

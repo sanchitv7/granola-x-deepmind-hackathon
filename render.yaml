@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: recruiter-api
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install uv && uv sync
+    startCommand: unset VIRTUAL_ENV && uv run uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: FRONTEND_URL
+        sync: false

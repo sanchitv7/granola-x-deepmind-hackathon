@@ -44,6 +44,11 @@ Job Created → Sourcing Agent (generates 25 candidates)
 **Frontend:**
 - React 18 + Vite
 - Tailwind CSS v3 (stable)
+- **Two implementations**:
+  - `frontend/` - Original implementation (basic, less complete)
+  - `frontend-neo/` - Neobrutalist design (more polished, has modal filtering, LinkedIn links, single-screen layout)
+  - **Use frontend-neo for production/showcase** - it's more feature-complete
+- Framer Motion for animations (frontend-neo only)
 - React Context for global state (simpler than Redux)
 - Axios for API calls
 - Keyboard shortcuts (← reject, → accept)
@@ -55,6 +60,15 @@ Job Created → Sourcing Agent (generates 25 candidates)
 - `outreach` - Email delivery tracking
 
 ## Development Commands
+
+### Quick Start (Both Servers)
+
+```bash
+# Run both backend and frontend-neo simultaneously
+./start.sh
+```
+
+This script runs backend on port 8000 and frontend-neo on port 5173.
 
 ### Backend
 
@@ -167,6 +181,22 @@ User gets immediate response, agents run async. Monitor progress via backend con
 - `loading` - UI loading state
 
 **Why Context not Redux?** Simpler for single-job workflow. No need for complex action/reducer patterns.
+
+### Interactive Stats & Filtering
+
+Frontend-neo adds clickable stats that open a filterable modal:
+
+**User workflow:**
+1. Stats panel shows counts: Accepted (5), Rejected (12), Contacted (2), etc.
+2. Click any stat number → `CandidateListModal` slides in from center
+3. Modal displays all candidates in that category with scores
+4. Click candidate in modal → navigates to that candidate in swiper
+
+**Implementation details:**
+- Modal uses Framer Motion for slide-in animation
+- Fetches filtered candidates via `/api/jobs/{job_id}/candidates/by-status/{status}`
+- Modal closes on backdrop click or × button
+- Status colors match stat colors (green=accepted, pink=rejected, etc.)
 
 ### CORS Configuration
 
@@ -316,6 +346,23 @@ frontend/src/
 │   └── StatsPanel.jsx        # Progress tracking
 └── hooks/
     └── useKeyboardShortcuts.js
+
+frontend-neo/src/              # Enhanced neobrutalist frontend (more complete)
+├── App.jsx                    # Root with neobrutalist styling
+├── context/AppContext.jsx     # Same state management as frontend
+├── components/
+│   ├── JobForm.jsx           # Form with thick borders, neo colors
+│   ├── CandidateCard.jsx     # Profile with LinkedIn/website links
+│   ├── CandidateSwiper.jsx   # Main review with single-screen layout
+│   ├── CandidateListModal.jsx # **NEW**: Filterable candidate list by status
+│   ├── StatsPanel.jsx        # **Enhanced**: Clickable stats open modal
+│   ├── SwipeControls.jsx     # Compact controls
+│   └── PitchModal.jsx        # Email preview with neo styling
+└── Design system:
+    - Colors: neo-yellow (#F7E733), neo-pink (#FF70A6), neo-green (#00FFA3), neo-blue (#4D90FE)
+    - Borders: 2-4px thick, sharp corners
+    - Shadows: 4px offset neo-shadow effect
+    - Typography: font-black (900 weight), uppercase, tracking-tight
 ```
 
 ## Performance Notes
@@ -339,15 +386,46 @@ frontend/src/
 
 ## Deployment Notes
 
-This is a hackathon/demo project. For production:
+### Production Deployment Checklist
+
+**Backend (FastAPI):**
+```bash
+cd backend
+uv sync
+# Set production environment variables
+export GEMINI_API_KEY=your_key
+export DATABASE_URL=path/to/production.db  # Or PostgreSQL URL
+
+# Run with production server
+uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+```
+
+**Frontend-neo (React):**
+```bash
+cd frontend-neo
+npm install
+npm run build  # Creates dist/ folder
+
+# Deploy dist/ to:
+# - Vercel: vercel deploy
+# - Netlify: netlify deploy --prod --dir=dist
+# - Static hosting: Upload dist/ contents
+```
+
+**Environment variables for production:**
+- Backend: `GEMINI_API_KEY`, optionally `SMTP_*` for real email
+- Frontend: Update `API_BASE_URL` in `AppContext.jsx` to production backend URL
+
+### Future Production Enhancements
+
+This is currently demo-quality. For LinkedIn showcase production:
 - Switch SQLite → PostgreSQL
 - Add authentication (user accounts, sessions)
 - Enable real SMTP (not console logging)
-- Add LinkedIn API integration (real profiles)
 - Implement rate limiting
 - Add proper error boundaries
 - Set up monitoring/logging
-- Deploy backend to AWS/GCP, frontend to Vercel/Netlify
+- Add LinkedIn API integration for real profiles (optional)
 
 ## Additional Documentation
 

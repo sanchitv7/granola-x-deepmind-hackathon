@@ -1,14 +1,17 @@
 """FastAPI application for agentic recruiter platform."""
 
-from fastapi import FastAPI, BackgroundTasks, HTTPException
+from fastapi import FastAPI, BackgroundTasks, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import json
+import os
 from typing import Dict, Any
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
+
+from rate_limiter import RateLimiter
 
 from models import JobCreate, StatsResponse, OutreachSendRequest
 from database import (
@@ -30,13 +33,21 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Agentic Recruiter API", lifespan=lifespan)
 
 # CORS middleware for frontend
+allowed_origins = ["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"]
+frontend_url = os.environ.get("FRONTEND_URL")
+if frontend_url:
+    allowed_origins.append(frontend_url.rstrip("/"))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Rate limiter
+rate_limiter = RateLimiter()
 
 
 # Agent instances
@@ -146,8 +157,9 @@ async def process_job_pipeline(job_id: int, count: int = 25):
 
 
 @app.post("/api/jobs")
-async def create_job_endpoint(job_data: JobCreate, background_tasks: BackgroundTasks):
+async def create_job_endpoint(job_data: JobCreate, background_tasks: BackgroundTasks, request: Request):
     """Create job and trigger candidate sourcing pipeline."""
+    rate_limiter.check("create_job", request.client.host, limit=10, window=3600)
     job_id = await create_job(
         title=job_data.title,
         company=job_data.company,
@@ -169,8 +181,9 @@ async def create_job_endpoint(job_data: JobCreate, background_tasks: BackgroundT
 
 
 @app.post("/api/jobs/{job_id}/source-more")
-async def source_more_candidates(job_id: int, background_tasks: BackgroundTasks):
+async def source_more_candidates(job_id: int, background_tasks: BackgroundTasks, request: Request):
     """Generate additional batch of candidates on demand."""
+    rate_limiter.check("source_more", request.client.host, limit=5, window=3600)
     job = await get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -439,3 +452,9 @@ async def get_candidates_by_status(job_id: int, status: str):
 async def root():
     """Health check."""
     return {"status": "ok", "message": "Agentic Recruiter API"}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
