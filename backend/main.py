@@ -10,11 +10,12 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-from models import JobCreate, StatsResponse
+from models import JobCreate, StatsResponse, OutreachSendRequest
 from database import (
     init_db, create_job, get_job, create_candidate, create_match,
     get_next_candidate, update_candidate_status, get_candidate,
-    create_outreach, update_outreach_status, get_job_stats
+    create_outreach, update_outreach_status, get_job_stats,
+    get_outreach, update_outreach_content, get_outreach_by_candidate_id
 )
 from agents import SourcingAgent, MatchingAgent, PitchWriterAgent, OutreachAgent
 
@@ -46,7 +47,7 @@ outreach_agent = OutreachAgent()
 
 
 async def process_job_pipeline(job_id: int, count: int = 25):
-    """Background task: Run sourcing and matching agents."""
+    """Background task: Run sourcing and matching agents in batches."""
     try:
         # Get job details
         job = await get_job(job_id)
@@ -55,54 +56,86 @@ async def process_job_pipeline(job_id: int, count: int = 25):
             return
 
         print(f"Starting pipeline for job {job_id}: {job['title']}")
+        
+        batch_size = 5
+        processed_count = 0
+        
+        while processed_count < count:
+            current_batch_size = min(batch_size, count - processed_count)
+            print(f"Processing batch: {current_batch_size} candidates (Total: {processed_count}/{count})...")
 
-        # Step 1: Sourcing Agent - Generate candidates
-        print(f"Sourcing {count} candidates...")
-        candidates = sourcing_agent.generate_candidates(job, count=count)
-        print(f"Generated {len(candidates)} candidates")
+            # Step 1: Sourcing Agent - Generate candidates (Batch)
+            candidates = await sourcing_agent.generate_candidates(job, count=current_batch_size)
+            print(f"Generated {len(candidates)} candidates in batch")
 
-        # Save candidates to database
-        candidate_ids = []
-        for candidate in candidates:
-            candidate_id = await create_candidate(
-                job_id=job_id,
-                name=candidate['name'],
-                current_role=candidate['current_role'],
-                current_company=candidate['current_company'],
-                years_experience=candidate['years_experience'],
-                skills=candidate['skills'],
-                location=candidate['location'],
-                email=candidate['email'],
-                linkedin_summary=candidate['linkedin_summary']
-            )
-            candidate_ids.append(candidate_id)
+            # Save candidates to database
+            candidate_ids = []
+            for candidate in candidates:
+                candidate_id = await create_candidate(
+                    job_id=job_id,
+                    name=candidate['name'],
+                    current_role=candidate['current_role'],
+                    current_company=candidate['current_company'],
+                    years_experience=candidate['years_experience'],
+                    skills=candidate['skills'],
+                    location=candidate['location'],
+                    email=candidate['email'],
+                    linkedin_summary=candidate['linkedin_summary'],
+                    linkedin_url=candidate.get('linkedin_url'),
+                    company_website=candidate.get('company_website')
+                )
+                candidate_ids.append(candidate_id)
 
-        print(f"Saved {len(candidate_ids)} candidates to database")
+            # Step 2: Matching Agent - Rank candidates (Batch)
+            matches = await matching_agent.rank_candidates(job, candidates)
+            print(f"Ranked {len(matches)} candidates in batch")
 
-        # Step 2: Matching Agent - Rank candidates
-        print("Ranking candidates...")
-        matches = matching_agent.rank_candidates(job, candidates)
-        print(f"Ranked {len(matches)} candidates")
+            # Save matches to database
+            for match in matches:
+                candidate_idx = match['candidate_index']
+                if candidate_idx < 0 or candidate_idx >= len(candidate_ids):
+                    continue
+                
+                candidate_id = candidate_ids[candidate_idx]
+                await create_match(
+                    job_id=job_id,
+                    candidate_id=candidate_id,
+                    score=match['score'],
+                    key_highlights=match['key_highlights'],
+                    fit_reasoning=match['fit_reasoning'],
+                    rank_position=match['rank_position'] # Rank is relative to batch, but that's fine for now
+                )
 
-        # Save matches to database
-        for match in matches:
-            candidate_idx = match['candidate_index']
+            # Step 3: Parallel Pre-generation of pitches for top candidates (Score >= 75)
+            top_matches = [m for m in matches if m['score'] >= 75]
+            if top_matches:
+                async def generate_and_save_pitch(match_data):
+                    idx = match_data['candidate_index']
+                    c_id = candidate_ids[idx]
+                    c_data = candidates[idx]
+                    if isinstance(c_data['skills'], str):
+                        c_data['skills'] = json.loads(c_data['skills'])
+                    
+                    try:
+                        pitch = await pitch_writer_agent.create_pitch(job, c_data, match_data)
+                        await create_outreach(
+                            job_id=job_id,
+                            candidate_id=c_id,
+                            subject=pitch['subject'],
+                            body=pitch['body'],
+                            delivery_status="generated"
+                        )
+                    except Exception as e:
+                        print(f"Error in parallel pitch gen for {c_id}: {e}")
 
-            # Validate index is within bounds
-            if candidate_idx < 0 or candidate_idx >= len(candidate_ids):
-                print(f"Warning: Invalid candidate index {candidate_idx}, skipping match")
-                continue
-
-            candidate_id = candidate_ids[candidate_idx]
-
-            await create_match(
-                job_id=job_id,
-                candidate_id=candidate_id,
-                score=match['score'],
-                key_highlights=match['key_highlights'],
-                fit_reasoning=match['fit_reasoning'],
-                rank_position=match['rank_position']
-            )
+                # Run all top match pitch generations concurrently
+                import asyncio
+                await asyncio.gather(*(generate_and_save_pitch(m) for m in top_matches))
+            
+            processed_count += len(candidates)
+            
+            # Small delay to yield control if needed
+            await asyncio.sleep(0.1)
 
         print(f"Pipeline complete for job {job_id}")
 
@@ -117,6 +150,8 @@ async def create_job_endpoint(job_data: JobCreate, background_tasks: BackgroundT
     """Create job and trigger candidate sourcing pipeline."""
     job_id = await create_job(
         title=job_data.title,
+        company=job_data.company,
+        company_website=job_data.company_website,
         description=job_data.description,
         required_skills=job_data.required_skills,
         experience_level=job_data.experience_level,
@@ -153,19 +188,20 @@ async def source_more_candidates(job_id: int, background_tasks: BackgroundTasks)
 async def get_next_candidate_endpoint(job_id: int):
     """Get next candidate to review."""
     candidate = await get_next_candidate(job_id)
+    
+    # Always get stats
+    stats = await get_job_stats(job_id)
 
     if not candidate:
         return {
             "candidate": None,
-            "message": "No more candidates available"
+            "message": "No more candidates available",
+            "stats": stats
         }
 
     # Parse JSON fields
     skills = json.loads(candidate['skills']) if isinstance(candidate['skills'], str) else candidate['skills']
     key_highlights = json.loads(candidate['key_highlights']) if isinstance(candidate['key_highlights'], str) else candidate['key_highlights']
-
-    # Get stats
-    stats = await get_job_stats(job_id)
 
     return {
         "candidate": {
@@ -178,6 +214,8 @@ async def get_next_candidate_endpoint(job_id: int):
             "location": candidate['location'],
             "email": candidate['email'],
             "linkedin_summary": candidate['linkedin_summary'],
+            "linkedin_url": candidate.get('linkedin_url'),
+            "company_website": candidate.get('company_website'),
             "status": candidate['status']
         },
         "match": {
@@ -193,7 +231,7 @@ async def get_next_candidate_endpoint(job_id: int):
 
 @app.put("/api/candidates/{candidate_id}/accept")
 async def accept_candidate(candidate_id: int):
-    """Accept candidate and generate personalized pitch."""
+    """Accept candidate and generate/retrieve personalized pitch."""
     candidate = await get_candidate(candidate_id)
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
@@ -201,6 +239,25 @@ async def accept_candidate(candidate_id: int):
     # Update status to accepted
     await update_candidate_status(candidate_id, "accepted")
 
+    # Check for pre-generated outreach
+    existing_outreach = await get_outreach_by_candidate_id(candidate_id)
+    
+    if existing_outreach:
+        print(f"Using pre-generated pitch for candidate {candidate_id}")
+        # Update status to draft if it was generated
+        if existing_outreach['delivery_status'] == 'generated':
+             await update_outreach_status(existing_outreach['id'], "draft")
+        
+        return {
+            "status": "draft_retrieved",
+            "pitch": {
+                "subject": existing_outreach['subject'],
+                "body": existing_outreach['body']
+            },
+            "outreach_id": existing_outreach['id']
+        }
+
+    # If no pre-generated pitch, generate one now
     # Get job and match details
     job = await get_job(candidate['job_id'])
 
@@ -224,37 +281,22 @@ async def accept_candidate(candidate_id: int):
     match['key_highlights'] = json.loads(match['key_highlights']) if isinstance(match['key_highlights'], str) else match['key_highlights']
 
     # Generate pitch with PitchWriterAgent
-    print(f"Generating pitch for candidate {candidate_id}...")
-    pitch = pitch_writer_agent.create_pitch(job, candidate, match)
+    print(f"Generating pitch for candidate {candidate_id} (On-demand)...")
+    pitch = await pitch_writer_agent.create_pitch(job, candidate, match)
 
-    # Create outreach record
+    # Create outreach record as DRAFT
     outreach_id = await create_outreach(
         job_id=candidate['job_id'],
         candidate_id=candidate_id,
         subject=pitch['subject'],
         body=pitch['body'],
-        delivery_status="pending"
+        delivery_status="draft"
     )
-
-    # Send email with OutreachAgent
-    success, message = outreach_agent.send_email(
-        to_email=candidate['email'],
-        subject=pitch['subject'],
-        body=pitch['body']
-    )
-
-    # Update outreach status
-    from datetime import datetime
-    if success:
-        await update_outreach_status(outreach_id, "sent", datetime.now())
-        await update_candidate_status(candidate_id, "contacted")
-    else:
-        await update_outreach_status(outreach_id, "failed", error_message=message)
 
     return {
-        "status": "success" if success else "failed",
+        "status": "draft_created",
         "pitch": pitch,
-        "delivery_message": message
+        "outreach_id": outreach_id
     }
 
 
@@ -310,6 +352,87 @@ async def get_stats(job_id: int):
     """Get job statistics."""
     stats = await get_job_stats(job_id)
     return stats
+
+
+@app.post("/api/outreach/send")
+async def send_outreach(request: OutreachSendRequest):
+    """Update draft content and send email."""
+    outreach = await get_outreach(request.outreach_id)
+    if not outreach:
+        raise HTTPException(status_code=404, detail="Outreach record not found")
+
+    # Update content with user edits
+    await update_outreach_content(request.outreach_id, request.subject, request.body)
+
+    # Get candidate email
+    candidate = await get_candidate(outreach['candidate_id'])
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+
+    # Send email
+    success, message = outreach_agent.send_email(
+        to_email=candidate['email'],
+        subject=request.subject,
+        body=request.body
+    )
+
+    # Update status
+    from datetime import datetime
+    if success:
+        await update_outreach_status(request.outreach_id, "sent", datetime.now())
+        await update_candidate_status(candidate['id'], "contacted")
+    else:
+        await update_outreach_status(request.outreach_id, "failed", error_message=message)
+
+    return {
+        "status": "success" if success else "failed",
+        "delivery_message": message
+    }
+
+
+@app.get("/api/jobs/{job_id}/candidates/by-status/{status}")
+async def get_candidates_by_status(job_id: int, status: str):
+    """Get all candidates filtered by status."""
+    import aiosqlite
+    from database import DB_PATH
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            """SELECT c.*, m.score, m.key_highlights
+               FROM candidates c
+               JOIN matches m ON c.id = m.candidate_id
+               WHERE c.job_id = ? AND c.status = ?
+               ORDER BY m.score DESC""",
+            (job_id, status)
+        )
+        rows = await cursor.fetchall()
+
+        candidates = []
+        for row in rows:
+            candidate_dict = dict(row)
+            # Parse JSON fields
+            skills = json.loads(candidate_dict['skills']) if isinstance(candidate_dict['skills'], str) else candidate_dict['skills']
+            key_highlights = json.loads(candidate_dict['key_highlights']) if isinstance(candidate_dict['key_highlights'], str) else candidate_dict['key_highlights']
+
+            candidates.append({
+                "id": candidate_dict['id'],
+                "name": candidate_dict['name'],
+                "current_role": candidate_dict['current_role'],
+                "current_company": candidate_dict['current_company'],
+                "years_experience": candidate_dict['years_experience'],
+                "skills": skills,
+                "location": candidate_dict['location'],
+                "email": candidate_dict['email'],
+                "linkedin_summary": candidate_dict['linkedin_summary'],
+                "linkedin_url": candidate_dict.get('linkedin_url'),
+                "company_website": candidate_dict.get('company_website'),
+                "status": candidate_dict['status'],
+                "score": candidate_dict['score'],
+                "key_highlights": key_highlights
+            })
+
+        return candidates
 
 
 @app.get("/")

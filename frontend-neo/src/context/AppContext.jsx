@@ -18,9 +18,21 @@ export const AppProvider = ({ children }) => {
   });
   const [loading, setLoading] = useState(false);
   const [pitch, setPitch] = useState(null);
+  const [filteredCandidates, setFilteredCandidates] = useState([]);
 
   const createJob = async (jobData) => {
     setLoading(true);
+    setCurrentCandidate(null);
+    setPitch(null);
+    setStats({
+      total: 0,
+      pending: 0,
+      viewed: 0,
+      accepted: 0,
+      rejected: 0,
+      contacted: 0
+    });
+    
     try {
       const response = await axios.post(`${API_BASE_URL}/api/jobs`, jobData);
       setJobId(response.data.job_id);
@@ -33,22 +45,33 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  const fetchNextCandidate = async () => {
+  const fetchNextCandidate = async (isRetry = false) => {
     if (!jobId) return;
 
-    setLoading(true);
+    if (!isRetry) setLoading(true);
     try {
       const response = await axios.get(`${API_BASE_URL}/api/jobs/${jobId}/candidates`);
+      
+      if (response.data.stats) {
+        setStats(response.data.stats);
+      }
+
       if (response.data.candidate) {
         setCurrentCandidate(response.data);
-        setStats(response.data.stats);
+        setLoading(false);
+      } else if (response.data.stats && (response.data.stats.total === 0 || response.data.stats.pending > 0)) {
+        // No candidate returned, but either:
+        // 1. We haven't sourced any yet (total === 0)
+        // 2. We have pending candidates but they might not be matched yet (pending > 0)
+        // Poll every 3 seconds
+        setTimeout(() => fetchNextCandidate(true), 3000);
       } else {
         setCurrentCandidate(null);
+        setLoading(false);
       }
       setPitch(null); // Reset pitch when loading new candidate
     } catch (error) {
       console.error('Error fetching candidate:', error);
-    } finally {
       setLoading(false);
     }
   };
@@ -57,12 +80,33 @@ export const AppProvider = ({ children }) => {
     setLoading(true);
     try {
       const response = await axios.put(`${API_BASE_URL}/api/candidates/${candidateId}/accept`);
-      setPitch(response.data.pitch);
+      // response.data.pitch now includes just the content, we need to attach the ID
+      setPitch({
+        ...response.data.pitch,
+        outreachId: response.data.outreach_id
+      });
       // Update stats
       await fetchStats();
       return response.data;
     } catch (error) {
       console.error('Error accepting candidate:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sendOutreach = async (outreachId, subject, body) => {
+    setLoading(true);
+    try {
+      const response = await axios.post(`${API_BASE_URL}/api/outreach/send`, {
+        outreach_id: outreachId,
+        subject,
+        body
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error sending outreach:', error);
       throw error;
     } finally {
       setLoading(false);
@@ -120,6 +164,19 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  const fetchCandidatesByStatus = async (status) => {
+    if (!jobId) return [];
+
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/jobs/${jobId}/candidates/by-status/${status}`);
+      setFilteredCandidates(response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching candidates by status:', error);
+      return [];
+    }
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -128,12 +185,15 @@ export const AppProvider = ({ children }) => {
         stats,
         loading,
         pitch,
+        filteredCandidates,
         createJob,
         fetchNextCandidate,
         acceptCandidate,
         rejectCandidate,
         sourceMoreCandidates,
-        fetchStats
+        fetchStats,
+        sendOutreach,
+        fetchCandidatesByStatus
       }}
     >
       {children}

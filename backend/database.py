@@ -15,19 +15,20 @@ async def init_db():
     schema_path = Path(__file__).parent / "schema.sql"
     schema = schema_path.read_text()
 
+    print(f"Initializing database at: {DB_PATH}")
     async with aiosqlite.connect(DB_PATH) as db:
         await db.executescript(schema)
         await db.commit()
 
 
-async def create_job(title: str, description: str, required_skills: List[str],
+async def create_job(title: str, company: str, company_website: str, description: str, required_skills: List[str],
                      experience_level: str, location: str) -> int:
     """Create a new job posting."""
     async with aiosqlite.connect(DB_PATH) as db:
         cursor = await db.execute(
-            """INSERT INTO jobs (title, description, required_skills, experience_level, location)
-               VALUES (?, ?, ?, ?, ?)""",
-            (title, description, json.dumps(required_skills), experience_level, location)
+            """INSERT INTO jobs (title, company, company_website, description, required_skills, experience_level, location)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (title, company, company_website, description, json.dumps(required_skills), experience_level, location)
         )
         await db.commit()
         return cursor.lastrowid
@@ -46,16 +47,17 @@ async def get_job(job_id: int) -> Optional[Dict[str, Any]]:
 
 async def create_candidate(job_id: int, name: str, current_role: str, current_company: str,
                           years_experience: int, skills: List[str], location: str,
-                          email: str, linkedin_summary: str) -> int:
+                          email: str, linkedin_summary: str, linkedin_url: str = None,
+                          company_website: str = None) -> int:
     """Create a new candidate."""
     async with aiosqlite.connect(DB_PATH) as db:
         cursor = await db.execute(
             """INSERT INTO candidates
                (job_id, name, current_role, current_company, years_experience,
-                skills, location, email, linkedin_summary)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                skills, location, email, linkedin_summary, linkedin_url, company_website)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (job_id, name, current_role, current_company, years_experience,
-             json.dumps(skills), location, email, linkedin_summary)
+             json.dumps(skills), location, email, linkedin_summary, linkedin_url, company_website)
         )
         await db.commit()
         return cursor.lastrowid
@@ -137,6 +139,40 @@ async def create_outreach(job_id: int, candidate_id: int, subject: str, body: st
         )
         await db.commit()
         return cursor.lastrowid
+
+
+async def get_outreach(outreach_id: int) -> Optional[Dict[str, Any]]:
+    """Get outreach record by ID."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute("SELECT * FROM outreach WHERE id = ?", (outreach_id,))
+        row = await cursor.fetchone()
+        if row:
+            return dict(row)
+        return None
+
+
+async def get_outreach_by_candidate_id(candidate_id: int) -> Optional[Dict[str, Any]]:
+    """Get outreach record by candidate ID."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute("SELECT * FROM outreach WHERE candidate_id = ?", (candidate_id,))
+        row = await cursor.fetchone()
+        if row:
+            return dict(row)
+        return None
+
+
+async def update_outreach_content(outreach_id: int, subject: str, body: str):
+    """Update outreach content (e.g. after user edits)."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """UPDATE outreach
+               SET subject = ?, body = ?
+               WHERE id = ?""",
+            (subject, body, outreach_id)
+        )
+        await db.commit()
 
 
 async def update_outreach_status(outreach_id: int, status: str, sent_at: datetime = None,

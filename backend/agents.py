@@ -34,6 +34,8 @@ class CandidateProfile(BaseModel):
     location: str
     email: str
     linkedin_summary: str
+    linkedin_url: str
+    company_website: str
 
 
 class CandidateMatch(BaseModel):
@@ -51,11 +53,12 @@ class EmailPitch(BaseModel):
 class SourcingAgent:
     """Generates realistic mock candidate profiles."""
 
-    def generate_candidates(self, job: Dict[str, Any], count: int = 25) -> List[Dict[str, Any]]:
+    async def generate_candidates(self, job: Dict[str, Any], count: int = 25) -> List[Dict[str, Any]]:
         """Generate diverse candidate profiles for a job."""
         prompt = f"""Generate {count} realistic candidate profiles for this job:
 
 Job Title: {job['title']}
+Company: {job['company']} ({job['company_website']})
 Required Skills: {', '.join(json.loads(job['required_skills']))}
 Experience Level: {job['experience_level']}
 Location: {job['location']}
@@ -71,6 +74,12 @@ Generate profiles with variety in:
 - Years of experience (range appropriate for level)
 - Locations (mix of on-site, remote, different cities)
 - Company sizes (startups, mid-size, enterprise)
+
+For each candidate, generate realistic URLs:
+- linkedin_url: Format as "https://linkedin.com/in/firstname-lastname" (use lowercase, no spaces)
+- company_website: Format as "https://companyname.com" (make it realistic for the company)
+
+These are mock URLs for demo purposes but should look authentic.
 
 Return a JSON array with candidate profiles."""
 
@@ -88,14 +97,16 @@ Return a JSON array with candidate profiles."""
                         'skills': {'type': 'array', 'items': {'type': 'string'}},
                         'location': {'type': 'string'},
                         'email': {'type': 'string'},
-                        'linkedin_summary': {'type': 'string'}
+                        'linkedin_summary': {'type': 'string'},
+                        'linkedin_url': {'type': 'string'},
+                        'company_website': {'type': 'string'}
                     },
                     'required': ['name', 'current_role', 'current_company', 'years_experience',
-                               'skills', 'location', 'email', 'linkedin_summary']
+                               'skills', 'location', 'email', 'linkedin_summary', 'linkedin_url', 'company_website']
                 }
             }
 
-            response = get_client().models.generate_content(
+            response = await get_client().aio.models.generate_content(
                 model='gemini-3-flash-preview',
                 contents=prompt,
                 config=types.GenerateContentConfig(
@@ -118,7 +129,7 @@ Return a JSON array with candidate profiles."""
 class MatchingAgent:
     """Ranks candidates with AI-powered fit scoring."""
 
-    def rank_candidates(self, job: Dict[str, Any], candidates: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    async def rank_candidates(self, job: Dict[str, Any], candidates: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Score and rank all candidates for a job."""
         # Format candidates for prompt (with 0-based indices)
         candidates_text = "\n\n".join([
@@ -131,10 +142,14 @@ class MatchingAgent:
             for i, c in enumerate(candidates)
         ])
 
-        prompt = f"""You are an expert recruiter. Analyze these candidates for this job and provide detailed matching scores.
+        prompt = f"""You are an expert recruiter for {job['company']} ({job['company_website']}). 
+Analyze these candidates for the '{job['title']}' role and provide detailed matching scores.
+
+Use your knowledge of {job['company']} and its products/website to determine what kind of engineer would succeed there.
 
 Job Requirements:
 Title: {job['title']}
+Company: {job['company']} ({job['company_website']})
 Required Skills: {', '.join(json.loads(job['required_skills']))}
 Experience Level: {job['experience_level']}
 Location: {job['location']}
@@ -144,14 +159,14 @@ Candidates:
 
 For each candidate, provide:
 1. Overall fit score (0-100)
-2. 3-4 key highlights (specific reasons why they're a good or bad fit)
+2. 3-4 key highlights (specific reasons why they're a good or bad fit for {job['company']} specifically)
 3. Brief fit reasoning (2-3 sentences explaining the score)
 
 Consider:
 - Skill match (do they have required technical skills?)
 - Experience level match (appropriate seniority?)
-- Location compatibility
-- Role relevance (is their current work similar?)
+- Culture fit (based on what you know/can infer about {job['company']})
+- Role relevance (is their current work similar to what they'd do at {job['company']}?)
 - Career trajectory (are they growing in the right direction?)
 
 IMPORTANT: Use the exact candidate_index shown above (0-based indexing: 0, 1, 2, etc.)
@@ -173,7 +188,7 @@ Return a JSON array ordered by score (highest first)."""
                 }
             }
 
-            response = get_client().models.generate_content(
+            response = await get_client().aio.models.generate_content(
                 model='gemini-3-flash-preview',
                 contents=prompt,
                 config=types.GenerateContentConfig(
@@ -201,17 +216,21 @@ Return a JSON array ordered by score (highest first)."""
 class PitchWriterAgent:
     """Creates personalized outreach messages."""
 
-    def create_pitch(self, job: Dict[str, Any], candidate: Dict[str, Any],
+    async def create_pitch(self, job: Dict[str, Any], candidate: Dict[str, Any],
                     match: Dict[str, Any]) -> Dict[str, str]:
         """Generate personalized outreach email."""
         skills = json.loads(candidate['skills']) if isinstance(candidate['skills'], str) else candidate['skills']
         highlights = json.loads(match['key_highlights']) if isinstance(match['key_highlights'], str) else match['key_highlights']
 
-        prompt = f"""Write a personalized recruiting email to reach out to this candidate.
+        prompt = f"""You are a recruiter at {job['company']}. Write a personalized recruiting email to reach out to this candidate.
+
+Use what you know about {job['company']} ({job['company_website']}) to make the email sound authentic and exciting. 
+Reference {job['company']}'s mission or specific products if relevant.
 
 Job:
 Title: {job['title']}
-Company: [Your Company Name]
+Company: {job['company']}
+Website: {job['company_website']}
 Location: {job['location']}
 
 Candidate:
@@ -221,7 +240,7 @@ Experience: {candidate['years_experience']} years
 Skills: {', '.join(skills)}
 Background: {candidate['linkedin_summary']}
 
-Why They're a Good Fit:
+Why They're a Good Fit for {job['company']}:
 {chr(10).join(f'- {h}' for h in highlights)}
 
 Match Score: {match['score']}/100
@@ -229,7 +248,7 @@ Match Score: {match['score']}/100
 Write a compelling, personalized email that:
 1. Addresses them by name
 2. Shows you've researched their background (reference specific experience)
-3. Explains why this role is a great fit for THEM specifically
+3. Explains why this role at {job['company']} is a great fit for THEM specifically
 4. Highlights 1-2 of their strengths that match the role
 5. Keeps it concise (3-4 short paragraphs)
 6. Sounds professional but friendly, not generic
@@ -240,7 +259,7 @@ Tone: Professional but warm. Adjust formality based on experience level.
 Return a JSON object with 'subject' and 'body' fields."""
 
         try:
-            response = get_client().models.generate_content(
+            response = await get_client().aio.models.generate_content(
                 model='gemini-3-flash-preview',
                 contents=prompt,
                 config=types.GenerateContentConfig(

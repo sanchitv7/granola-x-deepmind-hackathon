@@ -30,8 +30,8 @@ cd ..
 sleep 2
 
 # Start frontend
-echo "🎨 Starting frontend server..."
-cd frontend
+echo "🎨 Starting neobrutalist frontend server..."
+cd frontend-neo
 npm run dev &
 FRONTEND_PID=$!
 cd ..
@@ -39,7 +39,7 @@ cd ..
 echo ""
 echo "✅ Servers started!"
 echo "Backend: http://localhost:8000"
-echo "Frontend: http://localhost:5173"
+echo "Frontend: http://localhost:5174"
 echo ""
 echo "Press Ctrl+C to stop both servers"
 

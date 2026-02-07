@@ -4,11 +4,13 @@ import { useApp } from '../context/AppContext';
 const JobForm = ({ onJobCreated }) => {
   const { createJob } = useApp();
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    required_skills: '',
-    experience_level: 'Mid',
-    location: ''
+    title: 'Senior Full-Stack Engineer',
+    company: 'Vercel',
+    company_website: 'https://vercel.com',
+    description: 'We are looking for a Senior Full-Stack Engineer to help us build the future of the web. You will work on our core platform, focusing on performance, scalability, and developer experience. Ideally, you have experience with Next.js, React, and high-traffic distributed systems.',
+    required_skills: 'React, Next.js, TypeScript, Node.js, AWS',
+    experience_level: 'Senior',
+    location: 'Remote (Global)'
   });
   const [creating, setCreating] = useState(false);
 
@@ -57,6 +59,38 @@ const JobForm = ({ onJobCreated }) => {
             className="w-full px-4 py-3 border-4 border-black bg-white focus:bg-neo-yellow outline-none font-bold"
             placeholder="e.g., Senior Full-Stack Engineer"
           />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-lg font-black text-black mb-2 uppercase">
+              Company Name
+            </label>
+            <input
+              type="text"
+              name="company"
+              value={formData.company}
+              onChange={handleChange}
+              required
+              className="w-full px-4 py-3 border-4 border-black bg-white focus:bg-neo-yellow outline-none font-bold"
+              placeholder="e.g., Acme Corp"
+            />
+          </div>
+
+          <div>
+            <label className="block text-lg font-black text-black mb-2 uppercase">
+              Website
+            </label>
+            <input
+              type="url"
+              name="company_website"
+              value={formData.company_website}
+              onChange={handleChange}
+              required
+              className="w-full px-4 py-3 border-4 border-black bg-white focus:bg-neo-yellow outline-none font-bold"
+              placeholder="https://acme.com"
+            />
+          </div>
         </div>
 
         <div>
@@ -126,7 +160,7 @@ const JobForm = ({ onJobCreated }) => {
         <button
           type="submit"
           disabled={creating}
-          className="w-full bg-neo-pink text-black font-black text-2xl py-4 px-6 border-4 border-black shadow-neo hover:shadow-neo-hover hover:translate-x-[2px] hover:translate-y-[2px] transition-all disabled:bg-gray-400 disabled:translate-x-0 disabled:translate-y-0 disabled:shadow-none uppercase"
+          className="w-full bg-neo-pink text-black font-black text-2xl py-4 px-6 border-4 border-black shadow-neo hover:border-red-600 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:bg-gray-400 disabled:shadow-none uppercase"
         >
           {creating ? 'Sourcing Candidates...' : '🤖 Find Candidates'}
         </button>

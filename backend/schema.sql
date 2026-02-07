@@ -3,6 +3,8 @@
 CREATE TABLE IF NOT EXISTS jobs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
+    company TEXT NOT NULL,
+    company_website TEXT NOT NULL,
     description TEXT NOT NULL,
     required_skills TEXT NOT NULL,  -- JSON array
     experience_level TEXT NOT NULL,
@@ -21,6 +23,8 @@ CREATE TABLE IF NOT EXISTS candidates (
     location TEXT NOT NULL,
     email TEXT NOT NULL,
     linkedin_summary TEXT NOT NULL,
+    linkedin_url TEXT,
+    company_website TEXT,
     status TEXT DEFAULT 'pending',  -- pending, viewed, accepted, rejected, contacted
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (job_id) REFERENCES jobs(id)

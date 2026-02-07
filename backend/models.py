@@ -7,6 +7,8 @@ from datetime import datetime
 
 class JobCreate(BaseModel):
     title: str
+    company: str
+    company_website: str
     description: str
     required_skills: List[str]
     experience_level: str
@@ -59,6 +61,12 @@ class Outreach(BaseModel):
     delivery_status: str
     error_message: Optional[str]
     created_at: datetime
+
+
+class OutreachSendRequest(BaseModel):
+    outreach_id: int
+    subject: str
+    body: str
 
 
 class StatsResponse(BaseModel):
