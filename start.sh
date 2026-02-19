@@ -21,8 +21,7 @@ fi
 # Start backend in background
 echo "🚀 Starting backend server..."
 cd backend
-source .venv/bin/activate 2>/dev/null || echo "Note: Virtual environment not found, using system Python"
-uvicorn main:app --reload &
+.venv/bin/uvicorn main:app --reload &
 BACKEND_PID=$!
 cd ..
 

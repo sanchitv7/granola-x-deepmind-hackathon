@@ -2,6 +2,17 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## In-Progress: Showcase Plan
+
+**Done:**
+- `.worktrees/` added to `.gitignore` and committed
+- `feature/sse-streaming` branch: SSE endpoint + `_emit` calls in `backend/main.py` ✅ committed
+
+**TODO (resume next session):**
+- `feature/pipeline-ui` (.worktrees/pipeline-ui): create `AgentPipelineView.jsx`, update `CandidateSwiper.jsx` (swap `RecruiterLoading` → `AgentPipelineView`), fix `sourceMoreCandidates` in `AppContext.jsx` (remove 30s timeout, just `setLoading(true)`)
+- `feature/readme-overhaul` (.worktrees/readme-overhaul): write README.md (agent generated full content, just needs `Write` tool + commit); include SSE endpoint section
+- Merge order: `feature/sse-streaming` → `feature/pipeline-ui` → `feature/readme-overhaul` → `main`
+
 ## Project Overview
 
 An AI-powered recruiting assistant that demonstrates a genuine multi-agent system. The platform automates candidate sourcing, matching, personalized outreach, and tracking with a swipe-style UI. Built for a hackathon in ~2 hours to showcase agentic AI without heavyweight frameworks.

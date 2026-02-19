@@ -252,22 +252,26 @@ async def accept_candidate(candidate_id: int):
     # Update status to accepted
     await update_candidate_status(candidate_id, "accepted")
 
+    # Get updated stats
+    stats = await get_job_stats(candidate['job_id'])
+
     # Check for pre-generated outreach
     existing_outreach = await get_outreach_by_candidate_id(candidate_id)
-    
+
     if existing_outreach:
         print(f"Using pre-generated pitch for candidate {candidate_id}")
         # Update status to draft if it was generated
         if existing_outreach['delivery_status'] == 'generated':
              await update_outreach_status(existing_outreach['id'], "draft")
-        
+
         return {
             "status": "draft_retrieved",
             "pitch": {
                 "subject": existing_outreach['subject'],
                 "body": existing_outreach['body']
             },
-            "outreach_id": existing_outreach['id']
+            "outreach_id": existing_outreach['id'],
+            "stats": stats
         }
 
     # If no pre-generated pitch, generate one now
@@ -309,7 +313,8 @@ async def accept_candidate(candidate_id: int):
     return {
         "status": "draft_created",
         "pitch": pitch,
-        "outreach_id": outreach_id
+        "outreach_id": outreach_id,
+        "stats": stats
     }
 
 
@@ -322,6 +327,9 @@ async def reject_candidate(candidate_id: int):
 
     await update_candidate_status(candidate_id, "rejected")
 
+    # Get updated stats
+    stats = await get_job_stats(candidate['job_id'])
+
     # Get next candidate
     next_candidate = await get_next_candidate(candidate['job_id'])
 
@@ -329,7 +337,8 @@ async def reject_candidate(candidate_id: int):
         return {
             "status": "success",
             "next_candidate": None,
-            "message": "No more candidates available"
+            "message": "No more candidates available",
+            "stats": stats
         }
 
     # Parse JSON fields
@@ -356,7 +365,8 @@ async def reject_candidate(candidate_id: int):
                 "fit_reasoning": next_candidate['fit_reasoning'],
                 "rank_position": next_candidate['rank_position']
             }
-        }
+        },
+        "stats": stats
     }
 
 
