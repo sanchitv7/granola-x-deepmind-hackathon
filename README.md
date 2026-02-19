@@ -1,165 +1,59 @@
-# 🤖 Agentic Recruiter Platform
+# job-goblin
 
-An AI-powered recruiting platform that automates candidate sourcing, matching, personalized outreach, and status tracking with a Tinder-style swipe interface.
+Recruiters spend most of their time on work that doesn't require human judgment — parsing resumes, writing first-touch emails, tracking who's been contacted. job-goblin automates that layer so recruiters can focus on the conversations that actually matter.
 
-## Architecture
+It runs a pipeline of four AI agents: one sources candidates, one scores them against the role, one drafts a personalized outreach email, and one sends it. The recruiter's job is just to swipe — accept the candidates worth pursuing, reject the rest.
 
-### Multi-Agent System (Sequential Pipeline)
+## How it works
 
-Four specialized AI agents working together:
+1. Create a job posting with title, skills, experience level, and location
+2. The sourcing and matching agents run in the background (~30-60 seconds)
+3. Review candidates one by one — `→` to accept, `←` to reject
+4. On accept, the pitch writer generates a personalized email and the outreach agent sends it
+5. Source more candidates on demand if the initial batch isn't enough
 
-1. **Sourcing Agent**: Generates 20-25 realistic mock candidate profiles based on job description
-2. **Matching Agent**: Ranks candidates with AI-powered fit scoring (0-100)
-3. **Pitch Writer Agent**: Creates personalized outreach messages
-4. **Outreach Agent**: Sends emails via SMTP
+## Stack
 
-## Tech Stack
+- **Backend:** FastAPI, SQLite, Google Gemini API (`gemini-2.0-flash`)
+- **Frontend:** React + Vite, Tailwind CSS v3, Framer Motion
 
-**Backend:**
-- FastAPI (Python async framework)
-- SQLite (zero-setup database)
-- Google Gemini 2.0 Flash (LLM for all agents)
-- SMTP for email delivery
+## Setup
 
-**Frontend:**
-- React + Vite
-- Tailwind CSS
-- React Context for state management
-- Axios for API calls
-
-## Setup Instructions
-
-### Backend Setup
-
-1. Navigate to backend directory:
 ```bash
-cd backend
+# Add your Gemini API key
+echo "GEMINI_API_KEY=your_key_here" > backend/.env
+
+# Run both servers
+./start.sh
 ```
 
-2. Activate virtual environment (created by uv):
+Or separately:
+
 ```bash
-source .venv/bin/activate
+# Backend
+cd backend && uv sync
+.venv/bin/uvicorn main:app --reload
+
+# Frontend
+cd frontend && npm install && npm run dev
 ```
 
-3. Add your Google Gemini API key to `.env`:
-```bash
-# Edit backend/.env
-GOOGLE_API_KEY=your_actual_gemini_api_key
-```
+Backend runs at `http://localhost:8000`, frontend at `http://localhost:5173`.
 
-To get a Gemini API key:
-- Go to https://aistudio.google.com/apikey
-- Click "Get API Key" or use existing GCP project
-- Copy the API key (starts with "AIza...")
+## API
 
-4. Start the backend server:
-```bash
-uvicorn main:app --reload
-```
-
-Backend will run at `http://localhost:8000`
-
-### Frontend Setup
-
-1. Navigate to frontend directory:
-```bash
-cd frontend
-```
-
-2. Install dependencies (if not already done):
-```bash
-npm install
-```
-
-3. Start the development server:
-```bash
-npm run dev
-```
-
-Frontend will run at `http://localhost:5173`
-
-## Usage
-
-1. **Create a Job Posting**
-   - Fill out the job form with title, description, skills, experience level, and location
-   - Click "Create Job & Start Sourcing"
-   - Wait 30-60 seconds for AI agents to generate and rank candidates
-
-2. **Review Candidates**
-   - View candidate profiles with match scores and key highlights
-   - Use keyboard shortcuts:
-     - `←` or `X` to reject
-     - `→` or `Enter` to accept
-   - Or use the on-screen buttons
-
-3. **Accept Candidates**
-   - When you accept a candidate, the Pitch Writer Agent creates a personalized email
-   - The Outreach Agent sends the email (in demo mode, it's logged to console)
-   - View the generated pitch in the modal
-
-4. **Source More Candidates**
-   - Click "Source More Candidates" button to generate a fresh batch (15 new candidates)
-   - Useful when you want more options or different candidate profiles
-
-## Features
-
-✅ **Core Flow:**
-- Job description input form
-- Mock candidate generation (20-25 profiles initially)
-- "Source More Candidates" button (generates fresh batch on demand)
-- AI-powered matching with scores (0-100)
-- Flashcard UI with key highlights
-- Accept/reject with buttons and keyboard shortcuts
-- Personalized pitch generation
-- Email sending via SMTP (demo mode logs to console)
-- Stats display
-
-✅ **Agentic Behavior:**
-- Each agent makes independent decisions
-- Varied, non-templated outputs
-- Context-aware generation
-- Multi-factor reasoning
-
-## API Endpoints
-
-- `POST /api/jobs` - Create job + trigger sourcing pipeline
-- `GET /api/jobs/{job_id}/candidates` - Get next candidate to review
-- `PUT /api/candidates/{id}/accept` - Accept candidate & generate pitch
-- `PUT /api/candidates/{id}/reject` - Reject candidate
-- `GET /api/jobs/{job_id}/stats` - Get review statistics
-- `POST /api/jobs/{job_id}/source-more` - Generate fresh batch of candidates
-
-## Demo Tips
-
-For best demo experience:
-
-1. **Create a realistic job posting** (e.g., "Senior Full-Stack Engineer" with React, Node.js, PostgreSQL, AWS)
-2. **Show the multi-agent system working**:
-   - Point out the sourcing phase (generating diverse candidates)
-   - Highlight the matching scores and reasoning
-   - Accept a candidate to show pitch generation
-3. **Demonstrate "Source More"** - Click it to show agents generating fresh candidates in real-time
-4. **Show keyboard shortcuts** - Fast reviewing with arrow keys
-5. **Display the generated email** - Show how personalized it is
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/jobs` | Create job and trigger pipeline |
+| GET | `/api/jobs/{id}/candidates` | Next candidate to review |
+| PUT | `/api/candidates/{id}/accept` | Accept and generate pitch |
+| PUT | `/api/candidates/{id}/reject` | Reject |
+| GET | `/api/jobs/{id}/stats` | Review stats |
+| POST | `/api/jobs/{id}/source-more` | Generate more candidates |
+| GET | `/api/jobs/{id}/pipeline-events` | SSE stream for pipeline progress |
 
 ## Notes
 
-- Candidates are mock data generated by AI (not real LinkedIn profiles)
-- In demo mode, emails are logged to console instead of actually sent
-- To send real emails, configure SMTP settings in `backend/.env` and uncomment the SMTP code in `agents.py`
-- Database is SQLite file-based (`recruiter.db` in backend directory)
-
-## Cost Estimation
-
-With Google Gemini 2.0 Flash:
-- ~$0.02 per 1000 candidates generated
-- With $20 GCP credits, you can run 1000+ iterations
-
-## Hackathon Value Proposition
-
-This project demonstrates:
-- **Clear utility**: Solves real recruiter pain points
-- **Genuine agentic AI**: Multi-agent system with independent decision-making
-- **Technical depth**: Agent orchestration, structured LLM outputs, state management
-- **Product thinking**: Thoughtful UX, keyboard shortcuts, progress tracking
-- **Demo potential**: Visual, easy to understand, works end-to-end
+- Candidates are AI-generated profiles, not real people
+- Email delivery logs to console by default; configure `SMTP_*` vars in `backend/.env` to send real emails
+- Reset the database by deleting `backend/recruiter.db`
