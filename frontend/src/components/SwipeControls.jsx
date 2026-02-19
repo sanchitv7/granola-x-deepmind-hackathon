@@ -1,21 +1,22 @@
 const SwipeControls = ({ onReject, onAccept, disabled }) => {
   return (
-    <div className="flex justify-center gap-8 mt-8">
+    <div className="flex justify-center gap-6 px-4">
       <button
         onClick={onReject}
         disabled={disabled}
-        className="bg-red-500 hover:bg-red-600 text-white font-bold py-4 px-8 rounded-full shadow-lg transform transition hover:scale-105 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:scale-100"
+        className="group relative bg-neo-pink border-4 border-black text-black font-black py-3 px-8 shadow-neo hover:border-red-600 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:bg-gray-400 disabled:shadow-none"
       >
-        <span className="text-3xl">✗</span>
-        <span className="block text-sm mt-1">Reject (←)</span>
+        <span className="text-3xl block">✗</span>
+        <span className="block text-xs uppercase mt-1">REJECT (←)</span>
       </button>
+
       <button
         onClick={onAccept}
         disabled={disabled}
-        className="bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-8 rounded-full shadow-lg transform transition hover:scale-105 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:scale-100"
+        className="group relative bg-neo-green border-4 border-black text-black font-black py-3 px-8 shadow-neo hover:border-green-700 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:bg-gray-400 disabled:shadow-none"
       >
-        <span className="text-3xl">✓</span>
-        <span className="block text-sm mt-1">Accept (→)</span>
+        <span className="text-3xl block">✓</span>
+        <span className="block text-xs uppercase mt-1">ACCEPT (→)</span>
       </button>
     </div>
   );

@@ -31,7 +31,7 @@ sleep 2
 
 # Start frontend
 echo "🎨 Starting neobrutalist frontend server..."
-cd frontend-neo
+cd frontend
 npm run dev &
 FRONTEND_PID=$!
 cd ..
