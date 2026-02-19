@@ -2,40 +2,49 @@ import { useState } from 'react';
 import { AppProvider } from './context/AppContext';
 import JobForm from './components/JobForm';
 import CandidateSwiper from './components/CandidateSwiper';
+import LandingPage from './components/LandingPage';
 
 function App() {
+  const [page, setPage] = useState('landing'); // 'landing' | 'app'
   const [jobCreated, setJobCreated] = useState(false);
+
+  if (page === 'landing') {
+    return <LandingPage onEnter={() => setPage('app')} />;
+  }
 
   return (
     <AppProvider>
-      <div className="min-h-screen bg-gray-100">
-        {/* Header */}
-        <header className="bg-white shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 py-6">
-            <h1 className="text-3xl font-bold text-gray-900">
-              🤖 AI Recruiter Assistant
-            </h1>
-            <p className="text-gray-600 mt-1">
-              Instant candidate sourcing powered by AI agents
+      <div className="min-h-screen bg-neo-green p-4 md:p-8 font-mono">
+        <div className="max-w-6xl mx-auto flex flex-col gap-8">
+          {/* Header */}
+          <header className="bg-neo-yellow border-4 border-black shadow-neo p-6">
+            <div className="flex items-center gap-3">
+              <span className="text-4xl">👺</span>
+              <h1 className="text-4xl md:text-5xl font-black text-black uppercase tracking-tighter">
+                JOB_GOBLIN
+              </h1>
+            </div>
+            <p className="text-xl font-bold text-black mt-2">
+              Our minions scour the web. You take the credit.
             </p>
-          </div>
-        </header>
+          </header>
 
-        {/* Main Content */}
-        <main className="py-8">
-          {!jobCreated ? (
-            <JobForm onJobCreated={() => setJobCreated(true)} />
-          ) : (
-            <CandidateSwiper />
-          )}
-        </main>
+          {/* Main Content */}
+          <main className="min-h-0">
+            {!jobCreated ? (
+              <JobForm onJobCreated={() => setJobCreated(true)} />
+            ) : (
+              <CandidateSwiper />
+            )}
+          </main>
 
-        {/* Footer */}
-        <footer className="bg-white border-t border-gray-200 mt-12">
-          <div className="max-w-7xl mx-auto px-4 py-4 text-center text-sm text-gray-600">
-            Powered by 4 AI Agents: Sourcing → Matching → Pitch Writing → Outreach
-          </div>
-        </footer>
+          {/* Footer */}
+          <footer className="bg-neo-blue border-4 border-black shadow-neo p-4 text-center">
+            <p className="font-bold text-black uppercase">
+              Powered by 4 AI Agents: Sourcing → Matching → Pitch Writing → Outreach
+            </p>
+          </footer>
+        </div>
       </div>
     </AppProvider>
   );
